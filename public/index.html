@@ -64,8 +64,24 @@
     </section>
 
     <section class="account-callout" id="account">
-      <div><p class="eyebrow">ONE ACCOUNT, A BETTER EXPERIENCE</p><h2>Join Chacha Prime Marketplace</h2><p>Customer registration, identity verification, membership cards, vendor applications and secure payments will be connected as the platform is built out.</p></div>
-      <div class="callout-actions"><button class="button button-primary" id="status-button" type="button">Check API status</button><p id="api-status" role="status">Checking application availability…</p></div>
+      <div><p class="eyebrow">ONE ACCOUNT, A BETTER EXPERIENCE</p><h2>Join Chacha Prime Marketplace</h2><p>Start your seven-stage customer registration. First, verify your email address. Never share your verification code with anyone.</p></div>
+      <div class="registration-panel">
+        <form id="email-otp-form" novalidate>
+          <label for="registration-email">Email address</label>
+          <input id="registration-email" name="email" type="email" autocomplete="email" maxlength="254" placeholder="you@example.com" required>
+          <div class="otp-row">
+            <label for="registration-otp">Six-digit email code</label>
+            <input id="registration-otp" name="otp" type="text" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6}" maxlength="6" placeholder="000000" aria-describedby="registration-message">
+          </div>
+          <div class="registration-actions">
+            <button class="button button-primary" id="send-otp-button" type="button">Send verification code</button>
+            <button class="button button-secondary" id="verify-otp-button" type="submit">Verify email</button>
+          </div>
+          <p id="registration-message" role="status" aria-live="polite"></p>
+          <p id="registration-next-step" class="registration-next-step" hidden></p>
+        </form>
+        <div class="api-health"><button class="button button-secondary" id="status-button" type="button">Check API status</button><p id="api-status" role="status">Checking application availability…</p></div>
+      </div>
     </section>
   </main>
 
