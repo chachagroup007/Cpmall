@@ -75,6 +75,9 @@ const customerNumberResult = document.getElementById("customer-number-result");
 const identityVerificationStage = document.getElementById("identity-verification-stage");
 const identityVerificationMessage = document.getElementById("identity-verification-message");
 const submitIdentityVerificationButton = document.getElementById("submit-identity-verification-button");
+const identityVerificationStage = document.getElementById("identity-verification-stage");
+const identityVerificationMessage = document.getElementById("identity-verification-message");
+const submitIdentityVerificationButton = document.getElementById("submit-identity-verification-button");
 let registrationUserId = "";
 
 async function submitRegistrationRequest(url, payload, button, idleLabel) {
@@ -258,6 +261,8 @@ if (savePersonalInformationButton && personalInformationStage) {
       personalInformationStage.querySelectorAll("input").forEach((input) => { input.disabled = true; });
       if (identityVerificationStage) identityVerificationStage.hidden = false;
       if (identityVerificationMessage) identityVerificationMessage.textContent = "Personal details saved. Complete identity verification below.";
+      if (identityVerificationStage) identityVerificationStage.hidden = false;
+      if (identityVerificationMessage) identityVerificationMessage.textContent = "Personal details saved. Complete identity verification below.";
     } catch (error) {
       personalInformationMessage.textContent = error.message || "A network error occurred.";
       savePersonalInformationButton.disabled = false;
@@ -317,6 +322,71 @@ if (submitIdentityVerificationButton && identityVerificationStage) {
     try {
       const response = await fetch("/api/registration/identity-verification", {
         method: "POST", headers: { Accept: "application/json" }, body: payload
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) throw new Error(data.message || "Could not submit identity documents.");
+      identityVerificationMessage.textContent = data.message || "Identity documents submitted.";
+      submitIdentityVerificationButton.textContent = "Submitted for review";
+      identityVerificationStage.querySelectorAll("input, select").forEach((field) => { field.disabled = true; });
+    } catch (error) {
+      identityVerificationMessage.textContent = error.message || "A network error occurred.";
+      submitIdentityVerificationButton.disabled = false;
+      submitIdentityVerificationButton.textContent = "Submit identity documents";
+    }
+  });
+}
+
+if (submitIdentityVerificationButton && identityVerificationStage) {
+  submitIdentityVerificationButton.addEventListener("click", async () => {
+    if (!registrationUserId) {
+      identityVerificationMessage.textContent = "Registration session is missing. Start registration again.";
+      return;
+    }
+    const type = document.getElementById("identity-document-type");
+    const number = document.getElementById("identity-document-number");
+    const country = document.getElementById("identity-issuing-country");
+    const issue = document.getElementById("identity-issue-date");
+    const expiry = document.getElementById("identity-expiry-date");
+    const front = document.getElementById("identity-front-document");
+    const back = document.getElementById("identity-back-document");
+    if (![type, number, country, issue, expiry, front].every((field) => field.reportValidity())) return;
+    if (!/^[A-Za-z]{2}$/.test(country.value.trim())) {
+      country.setCustomValidity("Enter a two-letter country code, such as CN or NL.");
+      country.reportValidity();
+      country.setCustomValidity("");
+      return;
+    }
+    if (type.value !== "passport" && (!back.files || !back.files.length)) {
+      back.setCustomValidity("Upload the back image for this document type.");
+      back.reportValidity();
+      back.setCustomValidity("");
+      return;
+    }
+    const allowed = new Set(["image/jpeg", "image/png", "image/webp"]);
+    for (const field of [front, back]) {
+      if (field.files && field.files[0] && (!allowed.has(field.files[0].type) || field.files[0].size > 5 * 1024 * 1024)) {
+        identityVerificationMessage.textContent = "Choose JPG, PNG, or WEBP images no larger than 5 MB each.";
+        return;
+      }
+    }
+    const payload = new FormData();
+    payload.append("userId", registrationUserId);
+    payload.append("documentType", type.value);
+    payload.append("documentNumber", number.value.trim());
+    payload.append("issuingCountry", country.value.trim().toUpperCase());
+    payload.append("issueDate", issue.value);
+    payload.append("expiryDate", expiry.value);
+    payload.append("frontDocument", front.files[0]);
+    if (back.files && back.files[0]) payload.append("backDocument", back.files[0]);
+
+    submitIdentityVerificationButton.disabled = true;
+    submitIdentityVerificationButton.textContent = "Uploading securely…";
+    identityVerificationMessage.textContent = "Submitting identity documents for review…";
+    try {
+      const response = await fetch("/api/registration/identity-verification", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+        body: payload
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) throw new Error(data.message || "Could not submit identity documents.");
