@@ -19,8 +19,9 @@ function validEmail(email) {
   return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-function hashOtp(otp, salt) {
-  return crypto.createHash("sha256").update(salt + ":" + otp).digest("hex");
+async function hashOtp(otp, salt) {
+  const derived = await scrypt(otp, salt, 32, { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+  return derived.toString("hex");
 }
 
 function getMailer() {
@@ -87,7 +88,7 @@ router.post("/registration/send-otp", async (req, res) => {
 
     const otp = String(crypto.randomInt(0, 1000000)).padStart(6, "0");
     const salt = crypto.randomBytes(16).toString("hex");
-    const otpHash = salt + ":" + hashOtp(otp, salt);
+    const otpHash = salt + ":" + await hashOtp(otp, salt);
     const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
 
     const [insert] = await pool.execute(
@@ -171,7 +172,7 @@ router.post("/registration/verify-otp", async (req, res) => {
     }
 
     const [salt, expectedHash] = String(record.otp_hash).split(":");
-    const suppliedHash = hashOtp(otp, salt || "");
+    const suppliedHash = await hashOtp(otp, salt || "");
     const expected = Buffer.from(expectedHash || "", "hex");
     const supplied = Buffer.from(suppliedHash, "hex");
     const matches = expected.length === supplied.length &&
