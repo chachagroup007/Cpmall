@@ -72,6 +72,9 @@ const personalInformationStage = document.getElementById("personal-information-s
 const personalInformationMessage = document.getElementById("personal-information-message");
 const savePersonalInformationButton = document.getElementById("save-personal-information-button");
 const customerNumberResult = document.getElementById("customer-number-result");
+const identityVerificationStage = document.getElementById("identity-verification-stage");
+const identityVerificationMessage = document.getElementById("identity-verification-message");
+const submitIdentityVerificationButton = document.getElementById("submit-identity-verification-button");
 let registrationUserId = "";
 
 async function submitRegistrationRequest(url, payload, button, idleLabel) {
@@ -253,9 +256,77 @@ if (savePersonalInformationButton && personalInformationStage) {
       }
       savePersonalInformationButton.textContent = "Saved";
       personalInformationStage.querySelectorAll("input").forEach((input) => { input.disabled = true; });
+      if (identityVerificationStage) identityVerificationStage.hidden = false;
+      if (identityVerificationMessage) identityVerificationMessage.textContent = "Personal details saved. Complete identity verification below.";
     } catch (error) {
       personalInformationMessage.textContent = error.message || "A network error occurred.";
       savePersonalInformationButton.disabled = false;
+    }
+  });
+}
+
+if (submitIdentityVerificationButton && identityVerificationStage) {
+  submitIdentityVerificationButton.addEventListener("click", async () => {
+    if (!registrationUserId) {
+      identityVerificationMessage.textContent = "Registration session is missing. Start registration again.";
+      return;
+    }
+    const documentType = document.getElementById("identity-document-type");
+    const documentNumber = document.getElementById("identity-document-number");
+    const issuingCountry = document.getElementById("identity-issuing-country");
+    const issueDate = document.getElementById("identity-issue-date");
+    const expiryDate = document.getElementById("identity-expiry-date");
+    const frontDocument = document.getElementById("identity-front-document");
+    const backDocument = document.getElementById("identity-back-document");
+    const requiredFields = [documentType, documentNumber, issuingCountry, issueDate, expiryDate, frontDocument];
+    if (!requiredFields.every((field) => field && field.reportValidity())) return;
+    if (!/^[A-Za-z]{2}$/.test(issuingCountry.value.trim())) {
+      issuingCountry.setCustomValidity("Enter a two-letter ISO country code, such as CN or NL.");
+      issuingCountry.reportValidity();
+      issuingCountry.setCustomValidity("");
+      return;
+    }
+    if (documentType.value !== "passport" && (!backDocument.files || !backDocument.files.length)) {
+      backDocument.setCustomValidity("Upload the back image for this document type.");
+      backDocument.reportValidity();
+      backDocument.setCustomValidity("");
+      return;
+    }
+    const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+    for (const field of [frontDocument, backDocument]) {
+      if (field.files && field.files[0]) {
+        const file = field.files[0];
+        if (!allowedMimeTypes.has(file.type) || file.size > 5 * 1024 * 1024) {
+          identityVerificationMessage.textContent = "Choose JPG, PNG, or WEBP images no larger than 5 MB each.";
+          return;
+        }
+      }
+    }
+    const payload = new FormData();
+    payload.append("userId", registrationUserId);
+    payload.append("documentType", documentType.value);
+    payload.append("documentNumber", documentNumber.value.trim());
+    payload.append("issuingCountry", issuingCountry.value.trim().toUpperCase());
+    payload.append("issueDate", issueDate.value);
+    payload.append("expiryDate", expiryDate.value);
+    payload.append("frontDocument", frontDocument.files[0]);
+    if (backDocument.files && backDocument.files[0]) payload.append("backDocument", backDocument.files[0]);
+    submitIdentityVerificationButton.disabled = true;
+    submitIdentityVerificationButton.textContent = "Uploading securely…";
+    identityVerificationMessage.textContent = "Submitting identity documents for review…";
+    try {
+      const response = await fetch("/api/registration/identity-verification", {
+        method: "POST", headers: { Accept: "application/json" }, body: payload
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) throw new Error(data.message || "Could not submit identity documents.");
+      identityVerificationMessage.textContent = data.message || "Identity documents submitted.";
+      submitIdentityVerificationButton.textContent = "Submitted for review";
+      identityVerificationStage.querySelectorAll("input, select").forEach((field) => { field.disabled = true; });
+    } catch (error) {
+      identityVerificationMessage.textContent = error.message || "A network error occurred.";
+      submitIdentityVerificationButton.disabled = false;
+      submitIdentityVerificationButton.textContent = "Submit identity documents";
     }
   });
 }
