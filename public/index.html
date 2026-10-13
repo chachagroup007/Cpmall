@@ -136,6 +136,31 @@
             <button id="submit-identity-verification-button" class="button button-primary" type="button">Submit identity documents</button>
             <p id="identity-verification-message" role="status" aria-live="polite"></p>
           </section>
+
+          <section id="identity-verification-stage" class="identity-verification-stage" hidden aria-labelledby="identity-verification-heading">
+            <h3 id="identity-verification-heading">Step 4: Identity Verification</h3>
+            <p>Upload a current ID image in JPG, PNG, or WEBP format (up to 5 MB per image). Passport back image is optional; other document types require both sides.</p>
+            <div class="personal-form-grid">
+              <label for="identity-document-type">Document type <span>*</span>
+                <select id="identity-document-type" required>
+                  <option value="">Choose a document</option>
+                  <option value="passport">Passport</option>
+                  <option value="national_id">Citizenship / National ID</option>
+                  <option value="residence_card">Permanent Residence Card</option>
+                  <option value="visa">Visa</option>
+                  <option value="driving_license">Driving License</option>
+                </select>
+              </label>
+              <label for="identity-document-number">Document number <span>*</span><input id="identity-document-number" maxlength="100" autocomplete="off" required></label>
+              <label for="identity-issuing-country">Issuing country code <span>*</span><input id="identity-issuing-country" maxlength="2" minlength="2" placeholder="CN" required></label>
+              <label for="identity-issue-date">Issue date <span>*</span><input id="identity-issue-date" type="date" required></label>
+              <label for="identity-expiry-date">Expiry date <span>*</span><input id="identity-expiry-date" type="date" required></label>
+              <label for="identity-front-document" class="full-span">Front image <span>*</span><input id="identity-front-document" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+              <label for="identity-back-document" class="full-span">Back image <span>* for non-passport documents</span><input id="identity-back-document" type="file" accept="image/jpeg,image/png,image/webp"></label>
+            </div>
+            <button id="submit-identity-verification-button" class="button button-primary" type="button">Submit identity documents</button>
+            <p id="identity-verification-message" role="status" aria-live="polite"></p>
+          </section>
         </form>
         <div class="api-health"><button class="button button-secondary" id="status-button" type="button">Check API status</button><p id="api-status" role="status">Checking application availability…</p></div>
       </div>
