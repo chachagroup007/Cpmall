@@ -3,6 +3,10 @@ const crypto = require("node:crypto");
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const multer = require("multer");
+const crypto = require("node:crypto");
+const fs = require("node:fs/promises");
+const path = require("node:path");
+const multer = require("multer");
 const { getPool } = require("../config/db");
 const { generateUniqueCustomerNumber } = require("../services/customer-number");
 
@@ -273,6 +277,126 @@ router.post("/identity-verification", uploadIdentityFiles, async (req, res) => {
       ok: false,
       message: "Could not submit identity documents right now. Check server storage and encryption configuration, then try again."
     });
+  } finally {
+    if (connection) connection.release();
+  }
+});
+
+
+const identityUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 2, fields: 10, parts: 12 },
+  fileFilter: (_req, file, callback) => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) {
+      return callback(new Error("Upload JPG, PNG, or WEBP images only."));
+    }
+    callback(null, true);
+  }
+});
+
+function identityEncryptionKey() {
+  const value = process.env.ID_DOCUMENT_ENCRYPTION_KEY || "";
+  if (!/^[a-fA-F0-9]{64}$/.test(value)) throw new Error("ID_DOCUMENT_ENCRYPTION_KEY must be a 32-byte hex value.");
+  return Buffer.from(value, "hex");
+}
+function encryptIdentityValue(value) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", identityEncryptionKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(value), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), encrypted]);
+}
+function validIdentityImage(file) {
+  const b = file.buffer;
+  if (file.mimetype === "image/jpeg") return b.length >= 3 && b[0] === 255 && b[1] === 216 && b[2] === 255;
+  if (file.mimetype === "image/png") return b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+  if (file.mimetype === "image/webp") return b.length >= 12 && b.toString("ascii",0,4) === "RIFF" && b.toString("ascii",8,12) === "WEBP";
+  return false;
+}
+function identityStorageRoot() {
+  const root = path.resolve(process.env.PRIVATE_UPLOAD_DIR || path.join(process.cwd(), "private-uploads"));
+  const publicRoot = path.resolve(process.cwd(), "public");
+  const relative = path.relative(publicRoot, root);
+  if (relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))) throw new Error("Identity storage must be outside public.");
+  return root;
+}
+function parseIdentityUpload(req, res, next) {
+  identityUpload.fields([{ name: "frontDocument", maxCount: 1 }, { name: "backDocument", maxCount: 1 }])(req,res,(error) => {
+    if (!error) return next();
+    const message = error instanceof multer.MulterError
+      ? (error.code === "LIMIT_FILE_SIZE" ? "Each image must be 5 MB or smaller." : "Upload one front image and one back image at most.")
+      : error.message || "Could not process image upload.";
+    return res.status(400).json({ ok: false, message });
+  });
+}
+
+router.post("/identity-verification", parseIdentityUpload, async (req, res) => {
+  const publicId = clean(req.body?.userId, 36);
+  const documentType = clean(req.body?.documentType, 30);
+  const documentNumber = clean(req.body?.documentNumber, 100);
+  const issuingCountry = clean(req.body?.issuingCountry, 2).toUpperCase();
+  const issueDate = clean(req.body?.issueDate, 10);
+  const expiryDate = clean(req.body?.expiryDate, 10);
+  const front = req.files?.frontDocument?.[0] || null;
+  const back = req.files?.backDocument?.[0] || null;
+  const types = new Set(["passport","national_id","residence_card","visa","driving_license"]);
+  const today = new Date().toISOString().slice(0,10);
+  if (!publicId || !types.has(documentType) || documentNumber.length < 3 ||
+      !/^[\p{L}\p{N} .\-/]+$/u.test(documentNumber) ||
+      !/^[A-Z]{2}$/.test(issuingCountry) || !validDate(issueDate) || !validDate(expiryDate) ||
+      issueDate > expiryDate || issueDate > today || expiryDate < today || !front) {
+    return res.status(400).json({ok:false,message:"Enter valid document details and dates, and upload the front image. Expired documents cannot be submitted."});
+  }
+  for (const file of [front,back].filter(Boolean)) {
+    if (!validIdentityImage(file)) return res.status(400).json({ok:false,message:"A file is not a valid JPG, PNG, or WEBP image."});
+  }
+  if (documentType !== "passport" && !back) return res.status(400).json({ok:false,message:"Upload both sides of this document."});
+
+  let connection;
+  const saved = [];
+  try {
+    const encryptedNumber = encryptIdentityValue(Buffer.from(documentNumber, "utf8"));
+    const directory = path.join(identityStorageRoot(), "identity-verification");
+    await fs.mkdir(directory,{recursive:true,mode:0o700});
+    connection = await getPool().getConnection();
+    await connection.beginTransaction();
+    const [users] = await connection.execute("SELECT id,email_verified_at,account_status FROM users WHERE public_id=? LIMIT 1 FOR UPDATE",[publicId]);
+    if (!users.length || !users[0].email_verified_at || users[0].account_status !== "pending") {
+      await connection.rollback();
+      return res.status(404).json({ok:false,message:"Registration session not found. Verify your email first."});
+    }
+    const user = users[0];
+    const [security] = await connection.execute("SELECT totp_enabled_at FROM user_security WHERE user_id=? LIMIT 1",[user.id]);
+    const [profile] = await connection.execute("SELECT user_id FROM customer_profiles WHERE user_id=? LIMIT 1",[user.id]);
+    if (!security.length || !security[0].totp_enabled_at || !profile.length) {
+      await connection.rollback();
+      return res.status(403).json({ok:false,message:"Complete email, authenticator, and personal information steps first."});
+    }
+    const [existing] = await connection.execute("SELECT id FROM identity_verifications WHERE user_id=? AND verification_status IN ('pending','approved') LIMIT 1",[user.id]);
+    if (existing.length) {
+      await connection.rollback();
+      return res.status(409).json({ok:false,message:"An identity document is already pending review or approved."});
+    }
+    async function saveImage(file) {
+      if (!file) return null;
+      const name = crypto.randomUUID()+".enc";
+      const fullPath = path.join(directory,name);
+      await fs.writeFile(fullPath,encryptIdentityValue(file.buffer),{flag:"wx",mode:0o600});
+      saved.push(fullPath);
+      return path.posix.join("identity-verification",name);
+    }
+    const frontKey = await saveImage(front);
+    const backKey = await saveImage(back);
+    await connection.execute(
+      "INSERT INTO identity_verifications (user_id,document_type,document_number_encrypted,issuing_country,issue_date,expiry_date,front_document_storage_key,back_document_storage_key,verification_status) VALUES (?,?,?,?,?,?,?,?,'pending')",
+      [user.id,documentType,encryptedNumber,issuingCountry,issueDate,expiryDate,frontKey,backKey]
+    );
+    await connection.commit();
+    return res.status(201).json({ok:true,message:"Identity documents submitted securely for review. Status: pending.",verificationStatus:"pending",nextStep:"contact_information"});
+  } catch (error) {
+    if (connection) { try { await connection.rollback(); } catch (_) {} }
+    await Promise.all(saved.map((file)=>fs.unlink(file).catch(()=>{})));
+    console.error("Identity document submission failed:",error.message);
+    return res.status(503).json({ok:false,message:"Could not submit identity documents. Check storage and encryption configuration."});
   } finally {
     if (connection) connection.release();
   }
