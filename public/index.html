@@ -90,6 +90,27 @@
             <button id="verify-authenticator-button" class="button button-primary" type="button">Verify authenticator</button>
             <p id="authenticator-message" role="status" aria-live="polite"></p>
           </section>
+          <section id="personal-information-stage" class="personal-information-stage" hidden aria-labelledby="personal-information-heading">
+            <h3 id="personal-information-heading">Step 3: Personal Information</h3>
+            <p>Enter your details exactly as they should appear on your customer profile.</p>
+            <div class="personal-form-grid">
+              <label for="personal-first-name">First name <span>*</span><input id="personal-first-name" name="firstName" maxlength="100" autocomplete="given-name" required></label>
+              <label for="personal-last-name">Last name<input id="personal-last-name" name="lastName" maxlength="100" autocomplete="family-name"></label>
+              <label for="personal-father-name">Father / husband name <span>*</span><input id="personal-father-name" name="fatherOrHusbandName" maxlength="150" required></label>
+              <label for="personal-date-of-birth">Date of birth <span>*</span><input id="personal-date-of-birth" name="dateOfBirth" type="date" required></label>
+              <label for="personal-phone-code">Phone country calling code <span>*</span><input id="personal-phone-code" name="phoneCountryCode" type="text" value="+86" maxlength="8" placeholder="+86" required></label>
+              <label for="personal-phone-number">Phone number <span>*</span><input id="personal-phone-number" name="phoneNumber" type="tel" maxlength="30" autocomplete="tel-national" required></label>
+              <label class="full-span" for="personal-address-line-1">Home address <span>*</span><input id="personal-address-line-1" name="addressLine1" maxlength="255" autocomplete="address-line1" required></label>
+              <label class="full-span" for="personal-address-line-2">Address line 2<input id="personal-address-line-2" name="addressLine2" maxlength="255" autocomplete="address-line2"></label>
+              <label for="personal-province">Province / state<input id="personal-province" name="province" maxlength="120" autocomplete="address-level1"></label>
+              <label for="personal-city">City <span>*</span><input id="personal-city" name="city" maxlength="120" autocomplete="address-level2" required></label>
+              <label for="personal-postal-code">ZIP / postal code<input id="personal-postal-code" name="postalCode" maxlength="30" autocomplete="postal-code"></label>
+              <label for="personal-country-code">Country code (ISO 2 letters) <span>*</span><input id="personal-country-code" name="countryCode" maxlength="2" minlength="2" placeholder="CN" autocomplete="country" required></label>
+            </div>
+            <button id="save-personal-information-button" class="button button-primary" type="button">Save and continue</button>
+            <p id="personal-information-message" role="status" aria-live="polite"></p>
+            <p id="customer-number-result" class="customer-number-result" hidden></p>
+          </section>
         </form>
         <div class="api-health"><button class="button button-secondary" id="status-button" type="button">Check API status</button><p id="api-status" role="status">Checking application availability…</p></div>
       </div>
