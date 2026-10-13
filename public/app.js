@@ -61,6 +61,14 @@ const sendOtpButton = document.getElementById("send-otp-button");
 const verifyOtpButton = document.getElementById("verify-otp-button");
 const registrationMessage = document.getElementById("registration-message");
 const registrationNextStep = document.getElementById("registration-next-step");
+const authenticatorStage = document.getElementById("authenticator-stage");
+const authenticatorQr = document.getElementById("authenticator-qr");
+const authenticatorKey = document.getElementById("authenticator-manual-key");
+const authenticatorCode = document.getElementById("authenticator-code");
+const authenticatorMessage = document.getElementById("authenticator-message");
+const verifyAuthenticatorButton = document.getElementById("verify-authenticator-button");
+const copyAuthenticatorKey = document.getElementById("copy-authenticator-key");
+let registrationUserId = "";
 
 async function submitRegistrationRequest(url, payload, button, idleLabel) {
   button.disabled = true;
@@ -80,7 +88,10 @@ async function submitRegistrationRequest(url, payload, button, idleLabel) {
     if (registrationMessage) registrationMessage.textContent = data.message || "Done.";
     if (data.userId && registrationNextStep) {
       registrationNextStep.hidden = false;
-      registrationNextStep.textContent = "Email verified. Your registration reference is " + data.userId + ". The authenticator setup and remaining registration stages are the next implementation step.";
+      registrationUserId = data.userId;
+      registrationNextStep.textContent = "Email verified. Set up Google Authenticator below to continue.";
+      if (authenticatorStage) authenticatorStage.hidden = false;
+      startAuthenticatorSetup();
       if (otpInput) otpInput.disabled = true;
       if (sendOtpButton) sendOtpButton.disabled = true;
       if (verifyOtpButton) verifyOtpButton.disabled = true;
@@ -119,5 +130,60 @@ if (otpForm && emailInput && otpInput && verifyOtpButton) {
       verifyOtpButton,
       "Verify email"
     );
+  });
+}
+
+async function startAuthenticatorSetup() {
+  if (!registrationUserId || !authenticatorMessage) return;
+  authenticatorMessage.textContent = "Preparing secure setup…";
+  try {
+    const response = await fetch("/api/auth/registration/authenticator/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ userId: registrationUserId })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.message || "Authenticator setup failed.");
+    authenticatorQr.src = data.qrDataUrl;
+    authenticatorQr.hidden = false;
+    authenticatorKey.value = data.manualKey;
+    authenticatorMessage.textContent = data.message;
+  } catch (error) {
+    authenticatorMessage.textContent = error.message || "Could not load authenticator setup.";
+  }
+}
+
+if (copyAuthenticatorKey && authenticatorKey) {
+  copyAuthenticatorKey.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(authenticatorKey.value);
+      if (authenticatorMessage) authenticatorMessage.textContent = "Setup key copied.";
+    } catch {
+      authenticatorKey.select();
+      if (authenticatorMessage) authenticatorMessage.textContent = "Select and copy the setup key manually.";
+    }
+  });
+}
+
+if (verifyAuthenticatorButton && authenticatorCode) {
+  verifyAuthenticatorButton.addEventListener("click", async () => {
+    if (!registrationUserId || !authenticatorCode.reportValidity()) return;
+    verifyAuthenticatorButton.disabled = true;
+    authenticatorMessage.textContent = "Verifying code…";
+    try {
+      const response = await fetch("/api/auth/registration/authenticator/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ userId: registrationUserId, code: authenticatorCode.value })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) throw new Error(data.message || "Authenticator verification failed.");
+      authenticatorMessage.textContent = data.message + " Personal-information form is the next stage to implement.";
+      authenticatorCode.disabled = true;
+      verifyAuthenticatorButton.disabled = true;
+    } catch (error) {
+      authenticatorMessage.textContent = error.message || "A network error occurred.";
+      verifyAuthenticatorButton.disabled = false;
+    }
   });
 }
