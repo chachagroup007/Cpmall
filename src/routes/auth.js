@@ -101,7 +101,7 @@ function totpCode(secret, timeStep = Math.floor(Date.now() / 1000 / 30)) {
 }
 
 function verifyTotp(secret, suppliedCode) {
-  if (!/^\\d{6}$/.test(suppliedCode)) return false;
+  if (!/^\d{6}$/.test(suppliedCode)) return false;
   const currentStep = Math.floor(Date.now() / 1000 / 30);
   for (let offset = -1; offset <= 1; offset += 1) {
     const expected = Buffer.from(totpCode(secret, currentStep + offset));
@@ -388,7 +388,7 @@ router.post("/registration/authenticator/setup", async (req, res) => {
 router.post("/registration/authenticator/verify", async (req, res) => {
   const publicId = typeof req.body?.userId === "string" ? req.body.userId.trim() : "";
   const code = typeof req.body?.code === "string" ? req.body.code.trim() : "";
-  if (!/^\\d{6}$/.test(code)) {
+  if (!/^\d{6}$/.test(code)) {
     return res.status(400).json({ ok: false, message: "Enter the six-digit code from Google Authenticator." });
   }
   let connection;
