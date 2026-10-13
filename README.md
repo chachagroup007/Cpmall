@@ -47,7 +47,7 @@ The first customer-registration stage is available through these endpoints:
 
 Codes expire after 10 minutes, are stored as salted scrypt hashes, have a five-attempt limit, and are subject to resend and hourly limits. Configure SMTP using server environment variables. Copy `.env.example` to a private `.env` on your server and replace placeholders; never commit real credentials.
 
-Email verification is only the first registration stage. Authenticator setup, personal details, identity documents, membership-card issuing, sessions, and the remaining customer/vendor flows are not yet complete. Do not treat this foundation as production-ready until the full flow and security controls have been implemented and tested.
+Email verification is only the first registration stage. Authenticator setup and personal details are implemented; identity document upload, membership-card issuing, sessions, and the remaining customer/vendor flows still require implementation and testing. Do not treat this foundation as production-ready until the full flow and security controls have been implemented and tested.
 
 
 ## Google Authenticator registration stage
@@ -58,3 +58,8 @@ After email verification, the app can create a TOTP secret and QR code, show a m
 ## Customer personal information stage
 
 After email OTP and Google Authenticator verification, customers can submit their name, date of birth, phone number, and home address through `POST /api/registration/personal-information`. The endpoint verifies email and TOTP completion, writes the profile and default home address in one transaction, and allocates a unique 15-character customer number. Identity document verification and social contact capture remain separate upcoming stages. Test against the imported MySQL schema before production use.
+
+
+## Customer identity verification stage
+
+The identity-verification endpoint accepts a current passport, national ID, residence card, visa, or driving license. It encrypts the document number and uploaded images with AES-256-GCM; image files are stored in a private directory outside the public web root, and only opaque storage keys are saved in MySQL. JPG, PNG, and WEBP images are accepted, up to 5 MB per side. Passports may omit a back image; other document types require both sides. Configure ID_DOCUMENT_ENCRYPTION_KEY as a private 64-character hex value generated with openssl rand -hex 32, and optionally set PRIVATE_UPLOAD_DIR to a writable directory outside the public web root. Never commit either key or uploaded identity files. The endpoint and document access/admin review still need full authentication, authorization, retention policy, malware scanning, and production deployment testing before launch.
