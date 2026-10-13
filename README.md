@@ -36,3 +36,15 @@ Membership eligibility is configurable in `membership_tiers`. Rules may consider
 
 ## Important
 This is the initial application foundation, not a finished production marketplace. Authentication, OTP/TOTP verification, payment provider callbacks, admin approval workflows, shipping integrations, and full checkout must be implemented and tested before accepting real customers or payments.
+
+
+## Email verification API
+
+The first customer-registration stage is available through these endpoints:
+
+- `POST /api/auth/registration/send-otp` with JSON `{"email":"customer@example.com"}`
+- `POST /api/auth/registration/verify-otp` with JSON `{"email":"customer@example.com","otp":"123456"}`
+
+Codes expire after 10 minutes, are stored as salted scrypt hashes, have a five-attempt limit, and are subject to resend and hourly limits. Configure SMTP using server environment variables. Copy `.env.example` to a private `.env` on your server and replace placeholders; never commit real credentials.
+
+Email verification is only the first registration stage. Authenticator setup, personal details, identity documents, membership-card issuing, sessions, and the remaining customer/vendor flows are not yet complete. Do not treat this foundation as production-ready until the full flow and security controls have been implemented and tested.
