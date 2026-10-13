@@ -53,3 +53,8 @@ Email verification is only the first registration stage. Authenticator setup, pe
 ## Google Authenticator registration stage
 
 After email verification, the app can create a TOTP secret and QR code, show a manual setup key, and verify six-digit Google Authenticator codes. The TOTP secret is encrypted at rest with AES-256-GCM. Configure `TOTP_ENCRYPTION_KEY` as a private 64-character hex string generated with `openssl rand -hex 32`. Keep the same key safe and stable; changing it makes existing encrypted secrets unreadable. The QR code and authenticator endpoints still require end-to-end testing on the target server before production use.
+
+
+## Customer personal information stage
+
+After email OTP and Google Authenticator verification, customers can submit their name, date of birth, phone number, and home address through `POST /api/registration/personal-information`. The endpoint verifies email and TOTP completion, writes the profile and default home address in one transaction, and allocates a unique 15-character customer number. Identity document verification and social contact capture remain separate upcoming stages. Test against the imported MySQL schema before production use.
