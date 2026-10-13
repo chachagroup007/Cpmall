@@ -52,3 +52,72 @@ async function loadMembershipTiers() {
 if (statusButton) statusButton.addEventListener("click", checkApiStatus);
 checkApiStatus();
 loadMembershipTiers();
+
+
+const otpForm = document.getElementById("email-otp-form");
+const emailInput = document.getElementById("registration-email");
+const otpInput = document.getElementById("registration-otp");
+const sendOtpButton = document.getElementById("send-otp-button");
+const verifyOtpButton = document.getElementById("verify-otp-button");
+const registrationMessage = document.getElementById("registration-message");
+const registrationNextStep = document.getElementById("registration-next-step");
+
+async function submitRegistrationRequest(url, payload, button, idleLabel) {
+  button.disabled = true;
+  button.textContent = "Please wait…";
+  if (registrationMessage) registrationMessage.textContent = "";
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) {
+      const wait = data.retryAfterSeconds ? ` Wait ${data.retryAfterSeconds} seconds before retrying.` : "";
+      throw new Error((data.message || "The request could not be completed.") + wait);
+    }
+    if (registrationMessage) registrationMessage.textContent = data.message || "Done.";
+    if (data.userId && registrationNextStep) {
+      registrationNextStep.hidden = false;
+      registrationNextStep.textContent = "Email verified. Your registration reference is " + data.userId + ". The authenticator setup and remaining registration stages are the next implementation step.";
+      if (otpInput) otpInput.disabled = true;
+      if (sendOtpButton) sendOtpButton.disabled = true;
+      if (verifyOtpButton) verifyOtpButton.disabled = true;
+    }
+    return data;
+  } catch (error) {
+    if (registrationMessage) registrationMessage.textContent = error.message || "A network error occurred.";
+    return null;
+  } finally {
+    if (!registrationNextStep || registrationNextStep.hidden) {
+      button.disabled = false;
+      button.textContent = idleLabel;
+    }
+  }
+}
+
+if (sendOtpButton && emailInput) {
+  sendOtpButton.addEventListener("click", async () => {
+    if (!emailInput.reportValidity()) return;
+    await submitRegistrationRequest(
+      "/api/auth/registration/send-otp",
+      { email: emailInput.value },
+      sendOtpButton,
+      "Send verification code"
+    );
+  });
+}
+
+if (otpForm && emailInput && otpInput && verifyOtpButton) {
+  otpForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!emailInput.reportValidity() || !otpInput.reportValidity()) return;
+    await submitRegistrationRequest(
+      "/api/auth/registration/verify-otp",
+      { email: emailInput.value, otp: otpInput.value },
+      verifyOtpButton,
+      "Verify email"
+    );
+  });
+}
