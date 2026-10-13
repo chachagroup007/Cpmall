@@ -68,6 +68,10 @@ const authenticatorCode = document.getElementById("authenticator-code");
 const authenticatorMessage = document.getElementById("authenticator-message");
 const verifyAuthenticatorButton = document.getElementById("verify-authenticator-button");
 const copyAuthenticatorKey = document.getElementById("copy-authenticator-key");
+const personalInformationStage = document.getElementById("personal-information-stage");
+const personalInformationMessage = document.getElementById("personal-information-message");
+const savePersonalInformationButton = document.getElementById("save-personal-information-button");
+const customerNumberResult = document.getElementById("customer-number-result");
 let registrationUserId = "";
 
 async function submitRegistrationRequest(url, payload, button, idleLabel) {
@@ -178,12 +182,80 @@ if (verifyAuthenticatorButton && authenticatorCode) {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) throw new Error(data.message || "Authenticator verification failed.");
-      authenticatorMessage.textContent = data.message + " Personal-information form is the next stage to implement.";
+      authenticatorMessage.textContent = data.message;
       authenticatorCode.disabled = true;
       verifyAuthenticatorButton.disabled = true;
+      if (personalInformationStage) personalInformationStage.hidden = false;
+      if (personalInformationMessage) personalInformationMessage.textContent = "Complete the fields below and save to continue.";
     } catch (error) {
       authenticatorMessage.textContent = error.message || "A network error occurred.";
       verifyAuthenticatorButton.disabled = false;
+    }
+  });
+}
+
+
+if (savePersonalInformationButton && personalInformationStage) {
+  savePersonalInformationButton.addEventListener("click", async () => {
+    const fieldIds = [
+      "personal-first-name", "personal-father-name", "personal-date-of-birth",
+      "personal-phone-code", "personal-phone-number", "personal-address-line-1",
+      "personal-city", "personal-country-code"
+    ];
+    const fields = fieldIds.map((id) => document.getElementById(id)).filter(Boolean);
+    const countryField = document.getElementById("personal-country-code");
+    if (!registrationUserId) {
+      personalInformationMessage.textContent = "Registration session is missing. Start registration again.";
+      return;
+    }
+    if (!fields.every((field) => field.reportValidity())) return;
+    if (countryField && !/^[A-Za-z]{2}$/.test(countryField.value.trim())) {
+      countryField.setCustomValidity("Enter the two-letter ISO country code, for example CN or NL.");
+      countryField.reportValidity();
+      countryField.setCustomValidity("");
+      return;
+    }
+
+    const read = (id) => {
+      const field = document.getElementById(id);
+      return field ? field.value.trim() : "";
+    };
+    const payload = {
+      userId: registrationUserId,
+      firstName: read("personal-first-name"),
+      lastName: read("personal-last-name"),
+      fatherOrHusbandName: read("personal-father-name"),
+      dateOfBirth: read("personal-date-of-birth"),
+      phoneCountryCode: read("personal-phone-code"),
+      phoneNumber: read("personal-phone-number"),
+      addressLine1: read("personal-address-line-1"),
+      addressLine2: read("personal-address-line-2"),
+      province: read("personal-province"),
+      city: read("personal-city"),
+      postalCode: read("personal-postal-code"),
+      countryCode: read("personal-country-code").toUpperCase()
+    };
+
+    savePersonalInformationButton.disabled = true;
+    personalInformationMessage.textContent = "Saving personal information…";
+    try {
+      const response = await fetch("/api/registration/personal-information", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) throw new Error(data.message || "Could not save personal information.");
+      personalInformationMessage.textContent = data.message || "Personal information saved.";
+      if (customerNumberResult && data.customerNumber) {
+        customerNumberResult.hidden = false;
+        customerNumberResult.textContent = "Your customer number: " + data.customerNumber + " — keep it safe.";
+      }
+      savePersonalInformationButton.textContent = "Saved";
+      personalInformationStage.querySelectorAll("input").forEach((input) => { input.disabled = true; });
+    } catch (error) {
+      personalInformationMessage.textContent = error.message || "A network error occurred.";
+      savePersonalInformationButton.disabled = false;
     }
   });
 }
