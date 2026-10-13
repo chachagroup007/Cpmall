@@ -35,7 +35,7 @@ A multi-vendor retail and wholesale marketplace foundation built with Node.js, E
 Membership eligibility is configurable in `membership_tiers`. Rules may consider completed-order count, completed spend, or both. The initial thresholds in the schema are examples and should be reviewed before launch.
 
 ## Important
-This is the initial application foundation, not a finished production marketplace. Authentication, OTP/TOTP verification, payment provider callbacks, admin approval workflows, shipping integrations, and full checkout must be implemented and tested before accepting real customers or payments.
+This is the initial application foundation, not a finished production marketplace. Remaining registration stages, payment provider callbacks, admin approval workflows, shipping integrations, and full checkout must be implemented and tested before accepting real customers or payments.
 
 
 ## Email verification API
@@ -48,3 +48,8 @@ The first customer-registration stage is available through these endpoints:
 Codes expire after 10 minutes, are stored as salted scrypt hashes, have a five-attempt limit, and are subject to resend and hourly limits. Configure SMTP using server environment variables. Copy `.env.example` to a private `.env` on your server and replace placeholders; never commit real credentials.
 
 Email verification is only the first registration stage. Authenticator setup, personal details, identity documents, membership-card issuing, sessions, and the remaining customer/vendor flows are not yet complete. Do not treat this foundation as production-ready until the full flow and security controls have been implemented and tested.
+
+
+## Google Authenticator registration stage
+
+After email verification, the app can create a TOTP secret and QR code, show a manual setup key, and verify six-digit Google Authenticator codes. The TOTP secret is encrypted at rest with AES-256-GCM. Configure `TOTP_ENCRYPTION_KEY` as a private 64-character hex string generated with `openssl rand -hex 32`. Keep the same key safe and stable; changing it makes existing encrypted secrets unreadable. The QR code and authenticator endpoints still require end-to-end testing on the target server before production use.
