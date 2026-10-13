@@ -10,12 +10,13 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "check": "node --check src/server.js && node --check src/config/db.js"
+    "check": "node --check src/server.js && node --check src/config/db.js && node --check src/routes/auth.js && node --check src/services/customer-number.js"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "helmet": "^8.0.0",
-    "mysql2": "^3.12.0"
+    "mysql2": "^3.12.0",
+    "nodemailer": "^6.10.0"
   }
 }
