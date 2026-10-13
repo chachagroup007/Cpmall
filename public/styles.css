@@ -14,3 +14,32 @@
 .api-health p{font-size:.85rem;color:#61716b}
 button:disabled{opacity:.6;cursor:not-allowed}
 @media(max-width:640px){.registration-panel{padding:18px}.registration-actions{flex-direction:column}.registration-actions .button{width:100%}}
+
+
+.authenticator-stage {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--border, #dfe5ee);
+}
+.authenticator-stage h3 { margin-top: 0; }
+.authenticator-stage > img {
+  display: block;
+  width: min(240px, 100%);
+  height: auto;
+  margin: 1rem auto;
+  padding: .5rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+.manual-key-row {
+  display: flex;
+  gap: .5rem;
+  align-items: stretch;
+  margin-bottom: 1rem;
+}
+.manual-key-row input { min-width: 0; flex: 1; font-family: monospace; }
+.authenticator-stage > input { margin-bottom: .75rem; }
+@media (max-width: 480px) {
+  .manual-key-row { flex-direction: column; }
+}
