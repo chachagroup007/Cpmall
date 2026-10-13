@@ -79,6 +79,17 @@
           </div>
           <p id="registration-message" role="status" aria-live="polite"></p>
           <p id="registration-next-step" class="registration-next-step" hidden></p>
+          <section id="authenticator-stage" class="authenticator-stage" hidden aria-labelledby="authenticator-heading">
+            <h3 id="authenticator-heading">Step 2: Google Authenticator</h3>
+            <p>Scan the QR code in Google Authenticator. If scanning is unavailable, enter the setup key manually.</p>
+            <img id="authenticator-qr" alt="Google Authenticator setup QR code" width="240" height="240" hidden>
+            <label for="authenticator-manual-key">Manual setup key</label>
+            <div class="manual-key-row"><input id="authenticator-manual-key" type="text" readonly autocomplete="off"><button id="copy-authenticator-key" class="button button-secondary" type="button">Copy key</button></div>
+            <label for="authenticator-code">Six-digit authenticator code</label>
+            <input id="authenticator-code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" placeholder="000000">
+            <button id="verify-authenticator-button" class="button button-primary" type="button">Verify authenticator</button>
+            <p id="authenticator-message" role="status" aria-live="polite"></p>
+          </section>
         </form>
         <div class="api-health"><button class="button button-secondary" id="status-button" type="button">Check API status</button><p id="api-status" role="status">Checking application availability…</p></div>
       </div>
