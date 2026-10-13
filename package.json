@@ -10,7 +10,7 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "check": "node --check src/server.js && node --check src/config/db.js && node --check src/routes/auth.js && node --check src/services/customer-number.js"
+    "check": "node --check src/server.js && node --check src/config/db.js && node --check src/routes/auth.js && node --check src/routes/registration.js && node --check src/services/customer-number.js"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
